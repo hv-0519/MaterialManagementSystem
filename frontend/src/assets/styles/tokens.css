@@ -1,0 +1,62 @@
+/* ---------- MMS design tokens ---------- */
+:root {
+  /* Brand */
+  --c-primary: #3552e6;
+  --c-primary-600: #2a43c7;
+  --c-primary-50: #eef1fe;
+  --c-primary-100: #dde3fc;
+  --c-secondary: #0e1320;        /* ink */
+  --c-accent: #0fa99b;           /* teal */
+  --c-accent-50: #e6f7f5;
+
+  /* Surfaces */
+  --c-bg: #f5f6f8;
+  --c-surface: #ffffff;
+  --c-surface-2: #fafbfc;
+  --c-border: #e5e8ee;
+  --c-border-strong: #d3d8e1;
+
+  /* Text */
+  --c-text: #111827;
+  --c-text-2: #3d4657;
+  --c-muted: #6b7587;
+  --c-faint: #98a1b2;
+
+  /* Semantic */
+  --c-success: #16874f;   --c-success-bg: #e7f6ee;
+  --c-warning: #b76a05;   --c-warning-bg: #fdf1dc;
+  --c-danger:  #c8372d;   --c-danger-bg:  #fde9e7;
+  --c-info:    #2563c9;   --c-info-bg:    #e6effc;
+  --c-violet:  #6d4fd6;   --c-violet-bg:  #eee9fb;
+
+  /* Sidebar (dark ink) */
+  --sb-bg: #0e1320;
+  --sb-border: rgba(255, 255, 255, 0.07);
+  --sb-text: #9aa3b5;
+  --sb-text-active: #ffffff;
+  --sb-hover: rgba(255, 255, 255, 0.05);
+  --sb-active: rgba(255, 255, 255, 0.09);
+  --sb-width: 252px;
+  --sb-width-collapsed: 68px;
+
+  /* Geometry */
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --header-h: 60px;
+
+  /* Elevation */
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.04);
+  --shadow-md: 0 4px 12px -2px rgba(16, 24, 40, 0.08), 0 2px 4px -2px rgba(16, 24, 40, 0.05);
+  --shadow-lg: 0 20px 40px -12px rgba(16, 24, 40, 0.18);
+
+  /* Motion */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --t-fast: 120ms;
+  --t-base: 200ms;
+
+  /* Type */
+  --font-sans: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
