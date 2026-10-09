@@ -548,3 +548,167 @@ def create_material_request(request_data: dict):
         cursor.close()
         conn.close()
 
+
+# ============================================================
+# Purchase Approval APIs
+# ============================================================
+
+from pydantic import BaseModel
+
+
+class RejectionRequest(BaseModel):
+    reason: str
+
+
+@app.get("/api/purchase-approval/queue")
+def get_purchase_approval_queue():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT
+                mr.id,
+                mr.request_no,
+                m.material_name,
+                m.unit,
+                mr.quantity,
+                mr.request_type,
+                mr.required_date,
+                mr.remarks,
+                mr.created_at,
+                u.username AS created_by_username,
+                vu.username AS verified_by_username,
+                mr.verified_at
+            FROM material_requests mr
+            JOIN materials m ON mr.material_id = m.id
+            JOIN users u ON mr.created_by = u.id
+            LEFT JOIN users vu ON mr.verified_by = vu.id
+            WHERE mr.status = 'VERIFIED'
+              AND mr.approval_status = 'PENDING'
+            ORDER BY mr.id DESC
+        """)
+        rows = cursor.fetchall()
+
+        for row in rows:
+            row["quantity"] = float(row["quantity"]) if row["quantity"] is not None else 0
+            for field in ("required_date", "created_at", "verified_at"):
+                if row.get(field):
+                    row[field] = row[field].isoformat()
+
+        cursor.execute("""
+            SELECT COUNT(*) AS total
+            FROM material_requests
+            WHERE approval_status = 'APPROVED'
+              AND DATE(approved_at) = CURDATE()
+        """)
+        approved_today = cursor.fetchone()["total"] or 0
+
+        return {
+            "queue": rows,
+            "approved_today": int(approved_today)
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.post("/api/material-requests/{request_id}/approve")
+def approve_material_request(request_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT id, request_no, status, approval_status
+            FROM material_requests
+            WHERE id = %s
+        """, (request_id,))
+        request = cursor.fetchone()
+
+        if not request:
+            raise HTTPException(status_code=404, detail="Material request not found")
+
+        if request["status"] != "VERIFIED" or request["approval_status"] != "PENDING":
+            raise HTTPException(
+                status_code=400,
+                detail="Only verified requests awaiting approval can be approved"
+            )
+
+        cursor.execute("""
+            UPDATE material_requests
+            SET approval_status = 'APPROVED',
+                approved_by = 1,
+                approved_at = CURRENT_TIMESTAMP,
+                approval_reason = NULL
+            WHERE id = %s
+        """, (request_id,))
+        conn.commit()
+
+        return {
+            "message": "Material request approved successfully",
+            "request_id": request_id,
+            "request_no": request["request_no"],
+            "approval_status": "APPROVED"
+        }
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.post("/api/material-requests/{request_id}/reject")
+def reject_material_request(request_id: int, data: RejectionRequest):
+    reason = data.reason.strip()
+    if not reason:
+        raise HTTPException(status_code=400, detail="Rejection reason is required")
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT id, request_no, status, approval_status
+            FROM material_requests
+            WHERE id = %s
+        """, (request_id,))
+        request = cursor.fetchone()
+
+        if not request:
+            raise HTTPException(status_code=404, detail="Material request not found")
+
+        if request["status"] != "VERIFIED" or request["approval_status"] != "PENDING":
+            raise HTTPException(
+                status_code=400,
+                detail="Only verified requests awaiting approval can be rejected"
+            )
+
+        cursor.execute("""
+            UPDATE material_requests
+            SET approval_status = 'REJECTED',
+                approval_reason = %s
+            WHERE id = %s
+        """, (reason, request_id))
+        conn.commit()
+
+        return {
+            "message": "Material request rejected successfully",
+            "request_id": request_id,
+            "request_no": request["request_no"],
+            "approval_status": "REJECTED",
+            "reason": reason
+        }
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()

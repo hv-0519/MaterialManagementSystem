@@ -2,7 +2,21 @@
 import { RouterView } from 'vue-router'
 import AppSidebar from '@/components/AppSidebar.vue'
 import AppHeader from '@/components/AppHeader.vue'
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+
+const applyTheme = (theme) => {
+  document.documentElement.setAttribute('data-theme', theme)
+}
+
+const setTheme = (theme) => {
+  applyTheme(theme)
+  localStorage.setItem('mms-theme', theme)
+}
+
+onMounted(() => {
+  const saved = localStorage.getItem('mms-theme')
+  applyTheme(saved === 'dark' ? 'dark' : 'light')
+})
 
 const collapsed = ref(false)
 const mobileOpen = ref(false)
@@ -81,3 +95,4 @@ const mobileOpen = ref(false)
   }
 }
 </style>
+

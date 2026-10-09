@@ -2,240 +2,216 @@
 import { ref, onMounted, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
-  ClipboardList, ClipboardCheck, ShieldCheck, CircleCheckBig, ShoppingCart,
-  PackageCheck, Boxes, Plus, ArrowRight, Inbox,
+  ClipboardList, ShieldCheck, CircleCheckBig, ShoppingCart,
+  PackageCheck, Boxes, ArrowRight, Clock3, Check, CalendarDays
 } from 'lucide-vue-next'
-import StatCard from '@/components/StatCard.vue'
-import PipelineStrip from '@/components/PipelineStrip.vue'
 import TypeTag from '@/components/TypeTag.vue'
 import { getDashboardSummary } from '@/services/dashboard'
 import { useSession } from '@/composables/useSession'
 
 const { user, role, roleKey } = useSession()
 const data = ref(null)
-onMounted(async () => { data.value = await getDashboardSummary() })
+const loadError = ref(false)
+
+onMounted(async () => {
+  try {
+    data.value = await getDashboardSummary()
+  } catch (error) {
+    console.error('Dashboard loading failed:', error)
+    loadError.value = true
+  }
+})
 
 const greeting = computed(() => {
   const h = new Date().getHours()
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
 })
 
-// What each role should look at first
-const focus = computed(() => ({
-  receiver: { key: 'request', title: 'Requests waiting for verification', cta: 'Verify requests', to: '/requests' },
-  supervisor: { key: 'review', title: 'Verified requests awaiting your decision', cta: 'Open approval queue', to: '/approval' },
-  admin: { key: '', title: 'Latest requests across the workflow', cta: 'View all requests', to: '/requests' },
-}[roleKey.value]))
+const firstName = computed(() => user?.value?.name?.split(' ')[0] || user?.name?.split(' ')[0] || 'there')
 
-const stock = computed(() => {
-  const i = data.value?.inventory
-  if (!i) return []
+const focus = computed(() => ({
+  receiver: { title: 'Requests needing verification', to: '/requests', cta: 'Open requests' },
+  supervisor: { title: 'Verified requests awaiting your decision', to: '/approval', cta: 'Review queue' },
+  admin: { title: 'Requests across the workflow', to: '/requests', cta: 'View requests' }
+}[roleKey.value] || { title: 'Requests across the workflow', to: '/requests', cta: 'View requests' }))
+
+const cards = computed(() => {
+  const c = data.value?.counts || {}
   return [
-    { label: 'Healthy', n: i.healthy, c: 'var(--c-success)' },
-    { label: 'Low', n: i.low, c: 'var(--c-warning)' },
-    { label: 'Out of stock', n: i.out, c: 'var(--c-danger)' },
+    { label: 'Approved requests', value: c.approved ?? 0, icon: CircleCheckBig, tone: 'green', to: '/requests' },
+    { label: 'Purchase orders', value: c.poCreated ?? 0, icon: ShoppingCart, tone: 'blue', to: '/purchase-orders' },
+    { label: 'Materials received', value: c.received ?? 0, icon: PackageCheck, tone: 'orange', to: '/receiving' },
+    { label: 'Inventory items', value: data.value?.inventory?.skus ?? 0, icon: Boxes, tone: 'navy', to: '/inventory' }
   ]
 })
 </script>
 
 <template>
-  <div class="dash">
-    <!-- Page header -->
-    <header class="pg-head">
+  <div class="claude-dashboard">
+    <header class="welcome">
       <div>
         <p class="eyebrow">{{ role.label }} workspace</p>
-        <h1>{{ greeting }}, {{ user.name.split(' ')[0] }}</h1>
-        <p class="sub">Here's where every material request stands across the procurement workflow.</p>
+        <h1>{{ greeting }}, {{ firstName }}</h1>
+        <p class="subtitle">Here's what needs attention across the material request pipeline today.</p>
       </div>
-      <RouterLink to="/requests/new" class="btn btn--primary"><Plus :size="16" />New Material Request</RouterLink>
+      <RouterLink to="/requests/new" class="new-request">
+        <span>＋</span> New Material Request
+      </RouterLink>
     </header>
 
-    <!-- Loading skeleton -->
-    <template v-if="!data">
-      <div class="skel-flow skeleton" />
-      <div class="grid-top">
-        <div class="skel-card skeleton" style="height: 196px" />
-        <div class="skel-card skeleton" /><div class="skel-card skeleton" />
-      </div>
-      <div class="grid-sm"><div v-for="n in 4" :key="n" class="skel-card skeleton" style="height: 118px" /></div>
-      <div class="grid-bot">
-        <div class="skel-card skeleton" style="height: 300px" /><div class="skel-card skeleton" style="height: 300px" />
-      </div>
-    </template>
+    <div v-if="!data && !loadError" class="loading-panel">Loading dashboard data…</div>
+    <div v-else-if="loadError" class="error-panel">
+      Could not load dashboard data. Check that the backend is running, then refresh this page.
+    </div>
 
-    <template v-else>
-      <!-- Pipeline -->
-      <section class="panel flow-panel enter" style="--d: 0ms">
-        <div class="panel__head">
-          <h2>Workflow pipeline</h2>
-          <span class="legend">Live count at each stage</span>
+    <template v-else-if="data">
+      <section class="hero-grid">
+        <article class="approval-hero">
+          <p>Pending purchase approval</p>
+          <strong>{{ data.counts.pendingApproval ?? 0 }}</strong>
+          <div class="hero-foot">
+            <span class="orange-dot"></span>
+            Verified requests waiting for supervisor review
+          </div>
+          <div class="hero-line"><i></i></div>
+          <RouterLink to="/approval" class="hero-link">Review queue <ArrowRight :size="16" /></RouterLink>
+        </article>
+
+        <div class="side-stats">
+          <RouterLink to="/requests" class="side-stat">
+            <div>
+              <span>Pending verification</span>
+              <strong>{{ data.counts.pendingVerification ?? 0 }}</strong>
+            </div>
+            <span class="icon-box orange"><Clock3 :size="19" /></span>
+          </RouterLink>
+          <RouterLink to="/approval" class="side-stat">
+            <div>
+              <span>Verified requests</span>
+              <strong>{{ data.counts.verified ?? 0 }}</strong>
+            </div>
+            <span class="icon-box green"><Check :size="19" /></span>
+          </RouterLink>
         </div>
-        <PipelineStrip :counts="data.counts" :inventory-in="data.inventory.skus" :highlight="focus.key" />
       </section>
 
-      <!-- Primary cards: hierarchy -->
-      <div class="grid-top">
-        <StatCard class="enter" style="--d: 40ms"
-          variant="featured" label="Pending Verification" :value="data.counts.pendingVerification"
-          :icon="ClipboardList" tone="warning" :trend="data.trend.pendingVerification"
-          hint="Needs receiver action" to="/requests" />
-        <StatCard class="enter" style="--d: 80ms"
-          label="Pending Purchase Approval" :value="data.counts.pendingApproval"
-          :icon="ShieldCheck" tone="violet" hint="Verified, awaiting supervisor" to="/approval" />
-        <StatCard class="enter" style="--d: 120ms"
-          label="Approved Requests" :value="data.counts.approved" :delta="12"
-          :icon="CircleCheckBig" tone="success" :trend="data.trend.approved" hint="vs. last month" to="/requests" />
-      </div>
+      <section class="metric-grid">
+        <RouterLink v-for="card in cards" :key="card.label" :to="card.to" class="metric-card">
+          <span class="icon-box" :class="card.tone"><component :is="card.icon" :size="19" /></span>
+          <strong>{{ card.value }}</strong>
+          <span class="metric-label">{{ card.label }}</span>
+          <span class="metric-arrow"><ArrowRight :size="15" /></span>
+        </RouterLink>
+      </section>
 
-      <!-- Secondary cards -->
-      <div class="grid-sm">
-        <StatCard class="enter" style="--d: 160ms" variant="compact" label="Verified Requests" :value="data.counts.verified"
-          :icon="ClipboardCheck" tone="info" hint="Awaiting review" />
-        <StatCard class="enter" style="--d: 190ms" variant="compact" label="Purchase Orders" :value="data.counts.poCreated"
-          :icon="ShoppingCart" tone="primary" :trend="data.trend.purchaseOrders" to="/purchase-orders" />
-        <StatCard class="enter" style="--d: 220ms" variant="compact" label="Materials Received" :value="data.counts.received"
-          :icon="PackageCheck" tone="accent" :trend="data.trend.received" to="/receiving" />
-        <div class="panel stock enter" style="--d: 250ms">
-          <div class="stock__top">
-            <span class="ic"><Boxes :size="17" :stroke-width="1.9" /></span>
-            <span class="lbl">Inventory / Stock</span>
-            <RouterLink to="/inventory" class="more"><ArrowRight :size="15" /></RouterLink>
-          </div>
-          <div class="stock__val"><b class="num">{{ data.inventory.skus }}</b><span>SKUs</span></div>
-          <div class="bar">
-            <i v-for="s in stock" :key="s.label" :style="{ flex: s.n, background: s.c }" :title="`${s.label}: ${s.n}`" />
-          </div>
-          <div class="keys">
-            <span v-for="s in stock" :key="s.label"><i :style="{ background: s.c }" />{{ s.label }} <b class="num">{{ s.n }}</b></span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Attention + activity -->
-      <div class="grid-bot">
-        <section class="panel enter" style="--d: 290ms">
-          <div class="panel__head">
+      <section class="review-section">
+        <div class="section-heading">
+          <div>
             <h2>{{ focus.title }}</h2>
-            <RouterLink :to="focus.to" class="head-link">{{ focus.cta }}<ArrowRight :size="14" /></RouterLink>
+            <p>Live requests requiring attention in the workflow</p>
           </div>
-          <ul v-if="data.attention.length" class="queue">
-            <li v-for="r in data.attention" :key="r.id" :class="`tone-${r.tone}`">
-              <span class="pip" />
-              <div class="q-main">
-                <div class="q-title"><span class="id num">{{ r.id }}</span><TypeTag :type="r.type" /></div>
-                <div class="q-mat">{{ r.material }} <span class="qty num">Â· {{ r.qty }}</span></div>
-              </div>
-              <span class="q-note">{{ r.note }}</span>
-              <ArrowRight :size="15" class="q-go" />
-            </li>
-          </ul>
-          <div v-else class="empty"><Inbox :size="26" :stroke-width="1.4" /><b>You're all caught up</b><span>No requests need your attention right now.</span></div>
-        </section>
+          <RouterLink :to="focus.to" class="view-all">{{ focus.cta }} <ArrowRight :size="15" /></RouterLink>
+        </div>
 
-        <section class="panel enter" style="--d: 330ms">
-          <div class="panel__head"><h2>Recent activity</h2></div>
-          <ol class="feed">
-            <li v-for="a in data.activity" :key="a.target + a.when" :class="`t-${a.tone}`">
-              <span class="node" />
-              <p><b>{{ a.who }}</b> {{ a.action }} <span class="id num">{{ a.target }}</span></p>
-              <time>{{ a.when }}</time>
-            </li>
-          </ol>
-        </section>
-      </div>
+        <div v-if="data.attention?.length" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Request No.</th>
+                <th>Material</th>
+                <th>Type</th>
+                <th>Quantity</th>
+                <th>Workflow status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="request in data.attention" :key="request.id">
+                <td class="request-id">{{ request.id }}</td>
+                <td class="material-cell">{{ request.material }}</td>
+                <td><TypeTag :type="request.type" /></td>
+                <td>{{ request.qty }}</td>
+                <td>
+                  <span class="status-pill" :class="'status-' + request.tone">
+                    <i></i>{{ request.note }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-else class="empty-state">
+          <ClipboardList :size="25" />
+          <strong>No requests need attention</strong>
+          <span>There are currently no requests in the attention list.</span>
+        </div>
+      </section>
+
+      <section class="inventory-note">
+        <CalendarDays :size="18" />
+        <span>Inventory overview</span>
+        <strong>{{ data.inventory.skus }} tracked items</strong>
+        <span class="stock-good">Healthy {{ data.inventory.healthy }}</span>
+        <span class="stock-low">Low {{ data.inventory.low }}</span>
+        <span class="stock-out">Out of stock {{ data.inventory.out }}</span>
+        <RouterLink to="/inventory">View inventory <ArrowRight :size="14" /></RouterLink>
+      </section>
     </template>
   </div>
 </template>
 
 <style scoped>
-.dash { display: flex; flex-direction: column; gap: 20px; }
-
-.pg-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 4px; }
-.pg-head h1 { font-size: 26px; font-weight: 650; letter-spacing: -0.025em; margin: 4px 0 4px; }
-.pg-head .sub { color: var(--c-muted); }
-
-.panel { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); padding: 18px; }
-.panel__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-.panel__head h2 { font-size: 14px; font-weight: 600; }
-.legend { font-size: 12px; color: var(--c-muted); }
-.head-link { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 500; color: var(--c-primary); }
-.head-link:hover { text-decoration: underline; }
-.flow-panel { padding-bottom: 14px; }
-
-.grid-top { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 16px; }
-.grid-top > :first-child { grid-row: span 1; }
-.grid-sm { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-.grid-bot { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; }
-
-/* Entrance */
-.enter { animation: rise 380ms var(--ease) both; animation-delay: var(--d, 0ms); }
-@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
-
-/* Skeletons */
-.skel-flow { height: 118px; border-radius: var(--radius-lg); }
-.skel-card { height: 160px; border-radius: var(--radius-lg); }
-
-/* Stock panel */
-.stock { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; }
-.stock__top { display: flex; align-items: center; gap: 10px; }
-.stock .ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--c-secondary); background: #eceef3; }
-.lbl { font-size: 13px; font-weight: 500; color: var(--c-text-2); }
-.more { margin-left: auto; color: var(--c-faint); display: grid; }
-.more:hover { color: var(--c-primary); }
-.stock__val { display: flex; align-items: baseline; gap: 6px; }
-.stock__val b { font-size: 24px; font-weight: 650; letter-spacing: -0.03em; }
-.stock__val span { font-size: 12px; color: var(--c-muted); }
-.bar { display: flex; gap: 3px; height: 6px; }
-.bar i { border-radius: 3px; min-width: 4px; }
-.keys { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; color: var(--c-muted); }
-.keys span { display: inline-flex; align-items: center; gap: 5px; }
-.keys i { width: 6px; height: 6px; border-radius: 50%; }
-.keys b { color: var(--c-text); font-weight: 600; }
-
-/* Queue */
-.tone-warning { --tone: var(--c-warning); } .tone-info { --tone: var(--c-info); } .tone-violet { --tone: var(--c-violet); }
-.queue li {
-  display: grid; grid-template-columns: 10px 1fr auto 16px; align-items: center; gap: 14px;
-  padding: 12px 10px; margin: 0 -10px; border-radius: var(--radius); cursor: pointer;
-  transition: background var(--t-fast);
-}
-.queue li + li { border-top: 1px solid var(--c-border); }
-.queue li:hover { background: var(--c-surface-2); }
-.pip { width: 8px; height: 8px; border-radius: 50%; background: var(--tone); box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 18%, transparent); }
-.q-title { display: flex; align-items: center; gap: 8px; }
-.id { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--c-text-2); }
-.q-mat { font-size: 13.5px; margin-top: 2px; }
-.qty { color: var(--c-muted); }
-.q-note { font-size: 12px; color: var(--c-muted); white-space: nowrap; }
-.q-go { color: var(--c-faint); transition: transform var(--t-fast), color var(--t-fast); }
-.queue li:hover .q-go { transform: translateX(3px); color: var(--c-primary); }
-
-.empty { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 36px 0; color: var(--c-muted); text-align: center; }
-.empty b { color: var(--c-text); margin-top: 6px; }
-
-/* Activity timeline */
-.feed { position: relative; margin: 0; padding: 0; list-style: none; }
-.feed::before { content: ''; position: absolute; left: 4px; top: 8px; bottom: 8px; width: 1px; background: var(--c-border); }
-.feed li { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 9px 0 9px 22px; }
-.node { position: absolute; left: 0; top: 14px; width: 9px; height: 9px; border-radius: 50%; background: var(--c-surface); border: 2px solid var(--n); }
-.t-info { --n: var(--c-info); } .t-success { --n: var(--c-success); } .t-primary { --n: var(--c-primary); }
-.t-danger { --n: var(--c-danger); } .t-accent { --n: var(--c-accent); }
-.feed p { font-size: 13px; color: var(--c-text-2); }
-.feed p b { color: var(--c-text); font-weight: 600; }
-.feed time { font-size: 11.5px; color: var(--c-faint); white-space: nowrap; }
-
-@media (max-width: 1200px) {
-  .grid-top { grid-template-columns: 1fr 1fr; }
-  .grid-top > :first-child { grid-column: span 2; }
-  .grid-sm { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 960px) { .grid-bot { grid-template-columns: 1fr; } }
-@media (max-width: 640px) {
-  .grid-top, .grid-sm { grid-template-columns: 1fr; }
-  .grid-top > :first-child { grid-column: auto; }
-  .q-note { display: none; }
-  .queue li { grid-template-columns: 10px 1fr 16px; }
-  .pg-head h1 { font-size: 22px; }
-}
+.claude-dashboard{display:flex;flex-direction:column;gap:24px;color:#192b40}
+.welcome{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:#7a8798;font-weight:700;margin-bottom:8px}
+.welcome h1{font-size:25px;font-weight:700;letter-spacing:-.035em;margin:0 0 6px}
+.subtitle{font-size:13.5px;color:#758397;margin:0}
+.new-request{display:inline-flex;align-items:center;gap:8px;padding:11px 15px;background:#c77d2e;color:white;border-radius:7px;font-size:13px;font-weight:650;text-decoration:none;box-shadow:0 2px 5px #c77d2e25}
+.new-request span{font-size:19px;line-height:14px}
+.hero-grid{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}
+.approval-hero{background:#203d59;color:white;border-radius:11px;padding:27px 29px;min-height:245px;display:flex;flex-direction:column;align-items:flex-start;position:relative;overflow:hidden}
+.approval-hero:after{content:"";position:absolute;width:150px;height:150px;right:-45px;top:-45px;border-radius:50%;background:#c77d2e22;filter:blur(20px)}
+.approval-hero>p{font-size:13px;color:#d4dfeb;margin:0 0 8px}
+.approval-hero>strong{font-size:47px;line-height:1.2;font-weight:700;letter-spacing:-.04em}
+.hero-foot{display:flex;align-items:center;gap:8px;font-size:12px;color:#d8e1eb;margin-top:7px}
+.orange-dot{height:6px;width:6px;background:#e8a04e;border-radius:50%;flex:none}
+.hero-line{height:2px;width:100%;background:#ffffff25;margin:24px 0 18px}
+.hero-line i{display:block;width:25%;height:100%;background:#e8a04e}
+.hero-link{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid #ffffff35;background:#ffffff12;border-radius:6px;color:white;text-decoration:none;font-size:12px;font-weight:650}
+.side-stats{display:grid;grid-template-rows:1fr 1fr;gap:12px}
+.side-stat{background:white;border:1px solid #dfe5ec;border-radius:10px;padding:21px 18px;display:flex;align-items:center;justify-content:space-between;gap:15px;text-decoration:none;color:inherit;min-height:105px}
+.side-stat>div{display:flex;flex-direction:column;gap:6px}
+.side-stat span:not(.icon-box){font-size:12.5px;color:#69798e}
+.side-stat strong{font-size:25px;line-height:1.2;color:#15263b}
+.icon-box{width:37px;height:37px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.orange{background:#fbf0e2;color:#c77d2e}.green{background:#e6f4ed;color:#26965d}.blue{background:#e8f1fa;color:#4188b7}.navy{background:#edf0f4;color:#294965}
+.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
+.metric-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;background:white;border:1px solid #dfe5ec;border-radius:10px;padding:17px 18px;text-decoration:none;color:inherit;min-height:143px;box-shadow:0 1px 2px #17283b08}
+.metric-card>strong{font-size:27px;line-height:1.2;font-weight:700;letter-spacing:-.035em;margin-top:3px}
+.metric-label{font-size:12.5px;color:#5e7087}
+.metric-arrow{position:absolute;right:16px;top:18px;color:#99a7b8;opacity:0}
+.metric-card:hover .metric-arrow{opacity:1}
+.review-section{background:white;border:1px solid #dfe5ec;border-radius:10px;overflow:hidden}
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:20px 20px 16px}
+.section-heading h2{font-size:15px;font-weight:700;margin:0 0 5px}
+.section-heading p{font-size:12px;color:#7b899b;margin:0}
+.view-all{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#b46e27;text-decoration:none;font-weight:650;white-space:nowrap}
+.table-wrap{width:100%;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px;text-align:left}
+thead{background:#f0f2f5;color:#748297}
+th{font-size:11px;font-weight:650;padding:12px 17px;white-space:nowrap}
+td{padding:14px 17px;border-top:1px solid #e4e8ee;color:#52647a;white-space:nowrap}
+.request-id{font-family:var(--font-mono,monospace);font-size:11.5px;color:#4c6178}
+.material-cell{font-weight:600;color:#1d3046}
+.status-pill{display:inline-flex;align-items:center;gap:6px;max-width:280px;white-space:normal;font-size:11px;line-height:1.4;padding:5px 9px;border-radius:20px;background:#f0f2f5;color:#596a7e}
+.status-pill i{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.status-warning{background:#fbf0e2;color:#b66d20}.status-info{background:#e8f1fa;color:#347da9}.status-violet{background:#f0eaff;color:#7550bb}
+.empty-state{display:flex;flex-direction:column;align-items:center;gap:8px;padding:35px 15px;color:#8491a2}
+.empty-state strong{font-size:13px;color:#33475d}.empty-state span{font-size:12px}
+.inventory-note{display:flex;align-items:center;gap:13px;flex-wrap:wrap;padding:15px 17px;background:#fff;border:1px solid #dfe5ec;border-radius:9px;color:#718096;font-size:12px}
+.inventory-note>svg{color:#c77d2e}.inventory-note>strong{color:#263c53}.stock-good{color:#278755}.stock-low{color:#b87826}.stock-out{color:#bf5555}
+.inventory-note>a{margin-left:auto;display:inline-flex;align-items:center;gap:5px;color:#b46e27;text-decoration:none;font-weight:650}
+.loading-panel,.error-panel{padding:25px;background:white;border:1px solid #dfe5ec;border-radius:9px;color:#69798e;font-size:13px}
+.error-panel{color:#a33b3b;background:#fff8f7}
+@media(max-width:1050px){.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hero-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.welcome h1{font-size:22px}.metric-grid{grid-template-columns:1fr 1fr}.metric-card{padding:14px;min-height:130px}.section-heading{align-items:flex-start;flex-direction:column}.inventory-note{gap:9px}.inventory-note>a{margin-left:0}.approval-hero{padding:22px}.side-stat{padding:16px}}
 </style>
-

@@ -1,4 +1,4 @@
-/* ---------- MMS design tokens ---------- */
+﻿/* ---------- MMS design tokens ---------- */
 :root {
   /* Brand */
   --c-primary: #3552e6;
@@ -57,6 +57,116 @@
   --t-base: 200ms;
 
   /* Type */
-  --font-sans: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+
+/* ---------- MMS dark theme ---------- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --c-primary: #91a5ff;
+  --c-primary-600: #b0beff;
+  --c-primary-50: #263453;
+  --c-primary-100: #34456b;
+  --c-secondary: #e7edf6;
+  --c-accent: #54d2c2;
+  --c-accent-50: #193e3b;
+
+  --c-bg: #111923;
+  --c-surface: #1b2633;
+  --c-surface-2: #222f3e;
+  --c-border: #344354;
+  --c-border-strong: #46576b;
+
+  --c-text: #edf2f8;
+  --c-text-2: #d0d9e5;
+  --c-muted: #a3b1c2;
+  --c-faint: #8494a8;
+
+  --c-success: #64d59a;
+  --c-success-bg: #1d4035;
+  --c-warning: #f3bd68;
+  --c-warning-bg: #493720;
+  --c-danger: #ff8e88;
+  --c-danger-bg: #482b30;
+  --c-info: #8ebcff;
+  --c-info-bg: #243b59;
+  --c-violet: #c1a6ff;
+  --c-violet-bg: #382e53;
+
+  --sb-bg: #203d59;
+  --sb-border: rgba(255,255,255,.1);
+  --sb-text: #c4d1df;
+  --sb-text-active: #ffffff;
+  --sb-hover: rgba(255,255,255,.08);
+  --sb-active: rgba(255,255,255,.13);
+
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.18);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.22);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.25);
+  --shadow-lg: 0 20px 40px rgba(0,0,0,.4);
+}
+
+:root[data-theme="dark"] body {
+  background: var(--c-bg);
+  color: var(--c-text);
+}
+
+:root[data-theme="dark"] .claude-dashboard {
+  color: var(--c-text);
+}
+
+:root[data-theme="dark"] .side-stat,
+:root[data-theme="dark"] .metric-card,
+:root[data-theme="dark"] .review-section,
+:root[data-theme="dark"] .inventory-note,
+:root[data-theme="dark"] .loading-panel {
+  background: var(--c-surface);
+  border-color: var(--c-border);
+  color: var(--c-text);
+}
+
+:root[data-theme="dark"] .side-stat strong,
+:root[data-theme="dark"] .metric-card > strong,
+:root[data-theme="dark"] .material-cell,
+:root[data-theme="dark"] .section-heading h2 {
+  color: var(--c-text);
+}
+
+:root[data-theme="dark"] .approval-hero {
+  background: #172f47;
+}
+
+:root[data-theme="dark"] table thead {
+  background: var(--c-surface-2);
+  color: var(--c-muted);
+}
+
+:root[data-theme="dark"] table td {
+  border-color: var(--c-border);
+  color: var(--c-text-2);
+}
+
+:root[data-theme="dark"] .empty-state strong {
+  color: var(--c-text);
+}
+
+:root[data-theme="dark"] .hd {
+  background: rgba(17,25,35,.9);
+  border-color: var(--c-border);
+}
+
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  color: var(--c-text);
+  background-color: var(--c-surface-2);
+  border-color: var(--c-border);
+}
+
+:root[data-theme="dark"] .error-panel {
+  color: #ffaaa5;
+  background: #38252b;
+  border-color: #69404a;
 }

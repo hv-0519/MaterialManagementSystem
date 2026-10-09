@@ -1,5 +1,6 @@
-<script setup>
+﻿<script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { Moon, Sun } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
 import { Search, Bell, Menu, ChevronDown, Check, FileCheck2, PackageCheck, AlertCircle } from 'lucide-vue-next'
 import { useSession, ROLES } from '@/composables/useSession'
@@ -7,6 +8,15 @@ import { useSession, ROLES } from '@/composables/useSession'
 defineEmits(['menu'])
 
 const route = useRoute()
+
+const isDark = ref(false)
+const toggleTheme = () => {
+  isDark.value = !isDark.value
+  const theme = isDark.value ? 'dark' : 'light'
+  document.documentElement.setAttribute('data-theme', theme)
+  localStorage.setItem('mms-theme', theme)
+}
+onMounted(() => { isDark.value = localStorage.getItem('mms-theme') === 'dark' })
 const { user, role, roleKey, setRole } = useSession()
 
 const open = ref(null) // 'notif' | 'user' | null
@@ -34,11 +44,12 @@ const notifications = [
 
     <label class="search">
       <Search :size="15" />
-      <input type="search" placeholder="Search requests, POs, materials…" />
-      <kbd>⌘K</kbd>
+      <input type="search" placeholder="Search requests, POs, materials..." />
+      <kbd>Ctrl K</kbd>
     </label>
 
     <div class="hd__right">
+      <button class="icon-btn theme-toggle" type="button" :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'" :title="isDark ? 'Light mode' : 'Dark mode'" @click="toggleTheme"><Sun v-if="isDark" :size="18" /><Moon v-else :size="18" /></button>
       <div class="pop-wrap">
         <button class="icon-btn" :class="{ on: open === 'notif' }" aria-label="Notifications" @click.stop="toggle('notif')">
           <Bell :size="18" /><span class="dot" />
@@ -155,3 +166,7 @@ kbd { font-family: var(--font-sans); font-size: 11px; color: var(--c-muted); bor
   .pop--notif { position: fixed; right: 12px; left: 12px; width: auto; top: 68px; }
 }
 </style>
+
+
+
+

@@ -3,6 +3,7 @@
 import DashboardView from '@/views/DashboardView.vue'
 import RequestsView from '@/views/RequestsView.vue'
 import NewRequestView from '@/views/NewRequestView.vue'
+import ApprovalView from '@/views/ApprovalView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 
 export const navItems = [
@@ -82,7 +83,7 @@ const router = createRouter({
     {
       path: '/approval',
       name: 'approval',
-      component: PlaceholderView,
+      component: ApprovalView,
       meta: {
         title: 'Purchase Approval',
       },
@@ -118,4 +119,7 @@ const router = createRouter({
 })
 
 export default router
+
+
+
 
