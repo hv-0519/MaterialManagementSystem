@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MMS — Material Conversion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.4.21/vue.global.prod.min.js"></script>
+<style>
+  :root{
+    --bg:#F5F6F8; --surface:#FFFFFF; --surface-sunken:#EEF0F3; --border:#DFE3E8;
+    --text:#1A2233; --text-muted:#5C6B7A; --text-faint:#8A96A5;
+    --primary:#1F3B57; --primary-hover:#2C4F70; --primary-wash:#E7ECF1;
+    --accent:#C77D2E; --accent-wash:#FBF0E2;
+    --success:#2F8F5B; --success-wash:#E7F4ED;
+    --warning:#C77D2E; --warning-wash:#FBF0E2;
+    --danger:#C04A3D; --danger-wash:#F8EAE8;
+    --info:#3B7A9E; --info-wash:#E9F1F5;
+    --violet:#6A5ACD; --violet-wash:#ECEAFA;
+    --radius-sm:6px; --radius-md:10px;
+    --shadow-card: 0 1px 2px rgba(26,34,51,0.06), 0 1px 1px rgba(26,34,51,0.04);
+    --sidebar-w: 240px;
+  }
+  html[data-theme="dark"]{
+    --bg:#11161D; --surface:#171E27; --surface-sunken:#1D2530; --border:#2A3340;
+    --text:#E8EBEF; --text-muted:#9AA7B5; --text-faint:#6B7684;
+    --primary:#2C4F70; --primary-hover:#375F85; --primary-wash:#1E2A36;
+    --accent:#D98A3D; --accent-wash:#2B2013;
+    --success:#3FAE72; --success-wash:#16261C;
+    --warning:#D98A3D; --warning-wash:#2B2013;
+    --danger:#D9695A; --danger-wash:#2B1917;
+    --info:#4F93B8; --info-wash:#17242C;
+    --violet:#9B8FE0; --violet-wash:#211E35;
+    --shadow-card: 0 1px 2px rgba(0,0,0,0.3), 0 1px 1px rgba(0,0,0,0.2);
+  }
+  @keyframes fadeUp{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+  @keyframes fadeIn{ from{opacity:0;} to{opacity:1;} }
+  @keyframes popIn{ from{opacity:0; transform:scale(.96) translateY(6px);} to{opacity:1; transform:scale(1) translateY(0);} }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.5;} }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;transition:background-color .25s ease, color .25s ease;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  #app{display:flex;min-height:100vh;}
+
+  .sidebar{width:var(--sidebar-w); flex-shrink:0; background:var(--primary); color:#fff; position:fixed; top:0; left:0; bottom:0; display:flex; flex-direction:column; transition:transform .25s ease, background-color .25s ease; z-index:40;}
+  .brand{padding:22px 20px 18px; display:flex; align-items:center; gap:10px; border-bottom:1px solid rgba(255,255,255,0.1);}
+  .brand-mark{width:28px;height:28px;border-radius:6px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#1A1208;flex-shrink:0;}
+  .brand-text{line-height:1.2;}
+  .brand-text b{font-size:14.5px;font-weight:600;display:block;}
+  .brand-text span{font-size:11.5px;color:rgba(255,255,255,0.55);}
+  nav.nav{padding:14px 10px; display:flex; flex-direction:column; gap:2px; flex:1;}
+  .nav-item{display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:var(--radius-sm); color:rgba(255,255,255,0.68); font-size:13.5px; font-weight:500; cursor:pointer; text-decoration:none; transition:background .15s, color .15s;}
+  .nav-item svg{width:17px;height:17px;flex-shrink:0;opacity:.85;}
+  .nav-item:hover{background:rgba(255,255,255,0.06); color:#fff;}
+  .nav-item.active{background:rgba(255,255,255,0.12); color:#fff;}
+  .nav-item.active svg{color:var(--accent); opacity:1;}
+  .nav-item.disabled{opacity:.42; cursor:not-allowed; pointer-events:none;}
+  .nav-soon{margin-left:auto; font-size:9.5px; font-weight:700; letter-spacing:.3px; background:rgba(255,255,255,0.1); padding:1.5px 6px; border-radius:10px; color:rgba(255,255,255,0.6);}
+  .sidebar-foot{padding:14px 20px 18px; font-size:11px; color:rgba(255,255,255,0.4); border-top:1px solid rgba(255,255,255,0.1);}
+
+  .main{margin-left:var(--sidebar-w); flex:1; min-width:0; display:flex; flex-direction:column;}
+  .topbar{height:64px; background:var(--surface); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 24px; position:sticky; top:0; z-index:20; transition:background-color .25s ease, border-color .25s ease;}
+  .topbar-left{display:flex; align-items:center; gap:14px; min-width:0;}
+  .hamburger{display:none; background:none; border:none; cursor:pointer; padding:6px; margin-left:-6px;}
+  .hamburger svg{width:20px;height:20px;color:var(--text);}
+  .crumb{font-size:12.5px; color:var(--text-faint);}
+  .page-title-top{font-size:16px; font-weight:600; margin:1px 0 0;}
+  .topbar-right{display:flex; align-items:center; gap:16px;}
+  .bell-btn{position:relative; background:none; border:none; cursor:pointer; padding:7px; border-radius:var(--radius-sm); color:var(--text-muted);}
+  .bell-btn:hover{background:var(--surface-sunken);}
+  .bell-btn svg{width:18px;height:18px;display:block;}
+  .theme-btn svg{transition:transform .3s ease;}
+  .theme-btn:active svg{transform:rotate(25deg);}
+  .bell-dot{position:absolute; top:6px; right:6px; width:7px; height:7px; border-radius:50%; background:var(--accent); border:1.5px solid var(--surface);}
+  .user-chip{display:flex; align-items:center; gap:9px; padding-left:16px; border-left:1px solid var(--border);}
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--primary-wash);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;}
+  .user-meta{line-height:1.25;}
+  .user-meta b{font-size:13px; font-weight:600; display:block;}
+  .role-badge{display:inline-block; margin-top:1px; font-size:10px; font-weight:600; color:var(--info); background:var(--info-wash); padding:1px 7px; border-radius:20px;}
+
+  .content{padding:26px 28px 60px; max-width:1180px; width:100%; margin:0 auto;}
+  .content-head{margin-bottom:20px; animation:fadeUp .35s ease both;}
+  .content-head h1{font-size:21px; font-weight:700; margin:0 0 4px;}
+  .content-head p{font-size:13.5px; color:var(--text-muted); margin:0;}
+
+  .error-banner{background:var(--danger-wash); color:var(--danger); border:1px solid var(--danger); border-radius:var(--radius-md); padding:12px 16px; font-size:13px; margin-bottom:16px; display:flex; align-items:center; gap:8px;}
+  .error-banner svg{width:16px;height:16px; flex-shrink:0;}
+  .skeleton{background:var(--surface-sunken); border-radius:var(--radius-md); animation:pulse 1.4s ease-in-out infinite;}
+  .skel-row{height:46px; border-bottom:1px solid var(--border);}
+
+  .layout-grid{display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start;}
+
+  .panel{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:20px 22px; box-shadow:var(--shadow-card); transition:background-color .25s ease, border-color .25s ease; animation:fadeUp .4s ease both;}
+  .panel h2{font-size:14.5px; font-weight:600; margin:0 0 16px;}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;}
+  .field select, .field input{width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:var(--radius-sm); font-size:13px; background:var(--bg); color:var(--text); font-family:inherit;}
+  .field select:focus, .field input:focus{outline:2px solid var(--primary); outline-offset:1px;}
+
+  .preview-empty{font-size:12.5px; color:var(--text-faint); padding:20px 0; text-align:center;}
+  .preview-section{margin-bottom:16px;}
+  .preview-label{font-size:10.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:.3px; margin-bottom:8px;}
+  .preview-row{display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--surface-sunken); border-radius:var(--radius-sm); margin-bottom:6px; font-size:13px;}
+  .preview-row b{font-family:'IBM Plex Mono',monospace;}
+  .preview-row.short{background:var(--danger-wash); color:var(--danger);}
+  .preview-row.short b{color:var(--danger);}
+  .preview-remainder{font-size:11.5px; color:var(--text-faint); margin-top:4px;}
+
+  .btn-primary{background:var(--primary); color:#fff; border:none; padding:10px 18px; border-radius:var(--radius-sm); font-size:13px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:7px; width:100%; justify-content:center; transition:background .15s, transform .12s;}
+  .btn-primary:hover:not(:disabled){background:var(--primary-hover); transform:translateY(-1px);}
+  .btn-primary:disabled{opacity:.5; cursor:not-allowed; transform:none;}
+
+  .formerr{color:var(--danger); font-size:12.5px; margin-top:10px;}
+
+  .table-wrap{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); overflow:hidden; box-shadow:var(--shadow-card); transition:background-color .25s ease, border-color .25s ease; margin-top:24px;}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  thead th{text-align:left; font-size:11px; font-weight:600; color:var(--text-faint); background:var(--surface-sunken); padding:11px 16px; border-bottom:1px solid var(--border); white-space:nowrap;}
+  tbody tr{border-bottom:1px solid var(--border); cursor:pointer; transition:background-color .12s ease;}
+  tbody tr:last-child{border-bottom:none;}
+  tbody tr:hover{background:var(--surface-sunken);}
+  tbody td{padding:12px 16px; vertical-align:middle;}
+  .qty-cell{font-family:'IBM Plex Mono',monospace; font-size:12.5px;}
+
+  .empty-state{padding:40px 20px; text-align:center;}
+  .empty-state p{font-size:12.5px; color:var(--text-muted); margin:0;}
+
+  .toast{position:fixed; bottom:24px; right:24px; background:var(--text); color:var(--surface); padding:12px 18px; border-radius:var(--radius-sm); font-size:13px; font-weight:500; display:flex; align-items:center; gap:9px; box-shadow:0 8px 24px rgba(0,0,0,0.2); z-index:70; animation:popIn .2s ease both;}
+  .toast svg{width:16px;height:16px; flex-shrink:0;}
+  .toast.ok svg{color:var(--success);}
+  .toast.bad svg{color:var(--danger);}
+
+  .modal-backdrop{position:fixed; inset:0; background:rgba(15,20,25,0.45); display:flex; align-items:center; justify-content:center; z-index:60; padding:16px; animation:fadeIn .15s ease both;}
+  .detail-modal{background:var(--surface); border-radius:var(--radius-md); width:100%; max-width:440px; max-height:85vh; overflow-y:auto; box-shadow:0 20px 50px rgba(0,0,0,0.25); animation:popIn .18s ease both;}
+  .detail-head{padding:18px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;}
+  .detail-head h3{margin:0; font-size:15px; font-weight:600;}
+  .detail-close{background:none; border:none; cursor:pointer; color:var(--text-muted); padding:4px;}
+  .detail-close svg{width:18px;height:18px;}
+  .detail-body{padding:18px 22px; display:flex; flex-direction:column; gap:8px;}
+
+  .scrim{display:none; position:fixed; inset:0; background:rgba(15,20,25,0.4); z-index:30;}
+  @media (max-width: 860px){
+    .layout-grid{grid-template-columns:1fr;}
+  }
+  @media (max-width: 768px){
+    .sidebar{transform:translateX(-100%);}
+    .sidebar.open{transform:translateX(0);}
+    .main{margin-left:0;}
+    .hamburger{display:inline-flex;}
+    .scrim.show{display:block;}
+    .user-meta{display:none;}
+    .content{padding:18px 14px 50px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="scrim" :class="{show: sidebarOpen}" @click="sidebarOpen=false"></div>
+
+  <aside class="sidebar" :class="{open: sidebarOpen}">
+    <div class="brand">
+      <div class="brand-mark">M</div>
+      <div class="brand-text"><b>Material Mgmt</b><span>System</span></div>
+    </div>
+    <nav class="nav">
+      <a class="nav-item" :class="{active: item.label === 'Material Conversion', disabled: !item.href}" :href="item.href || null" v-for="item in navItems" :key="item.label">
+        <span v-html="item.icon"></span>{{ item.label }}
+        <span class="nav-soon" v-if="!item.href">Soon</span>
+      </a>
+    </nav>
+    <div class="sidebar-foot">v0.1 prototype — Webential</div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger" @click="sidebarOpen=true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div>
+          <div class="crumb">Stock</div>
+          <div class="page-title-top">Material Conversion</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="bell-btn theme-btn" @click="toggleTheme" :title="darkMode ? 'Switch to light' : 'Switch to dark'">
+          <svg v-if="!darkMode" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1111.2 3 7 7 0 0021 12.8z"/></svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        </button>
+        <button class="bell-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <span class="bell-dot"></span>
+        </button>
+        <div class="user-chip">
+          <div class="avatar">HP</div>
+          <div class="user-meta"><b>Het Patel</b><span class="role-badge">Admin</span></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="content-head">
+        <h1>Material Conversion</h1>
+        <p>Produce a kitted item (e.g. cans) from bulk stock using its defined recipe and packing rule.</p>
+      </div>
+
+      <div class="error-banner" v-if="error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Couldn't reach the API at {{ apiBase }} — {{ error }}.
+      </div>
+
+      <div class="layout-grid">
+        <div class="panel">
+          <h2>New Conversion</h2>
+          <div class="field">
+            <label>Output Material</label>
+            <select v-model="selectedMaterialId" @change="loadRecipe">
+              <option value="" disabled>Select a material…</option>
+              <option v-for="m in materials" :key="m.id" :value="m.id">{{ m.material_name }} ({{ m.unit }})</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Output Quantity</label>
+            <input type="number" min="1" step="1" v-model="outputQty" placeholder="e.g. 10" />
+          </div>
+
+          <template v-if="selectedMaterialId">
+            <div class="preview-section" v-if="recipeLoading">
+              <div class="skeleton skel-row"></div>
+            </div>
+            <template v-else>
+              <div class="preview-section" v-if="bomRows.length">
+                <div class="preview-label">Will Consume (recipe)</div>
+                <div class="preview-row" v-for="b in bomRows" :key="b.id" :class="{short: isShort(b.component_material_id, b.qty_per_unit * safeQty)}">
+                  <span>{{ b.material_name }}</span>
+                  <b>{{ (b.qty_per_unit * safeQty).toFixed(2) }} {{ b.unit }}</b>
+                </div>
+              </div>
+              <div class="preview-section" v-if="packingRows.length">
+                <div class="preview-label">Will Consume (packaging)</div>
+                <div class="preview-row" v-for="p in packingRows" :key="p.id" :class="{short: isShort(p.package_material_id, packagesFor(p))}">
+                  <span>{{ p.material_name }}</span>
+                  <b>{{ packagesFor(p) }} {{ p.unit }}</b>
+                </div>
+                <div class="preview-remainder" v-if="packingRows.length">
+                  {{ remainderNote(packingRows[0]) }}
+                </div>
+              </div>
+              <div class="preview-empty" v-if="!bomRows.length && !packingRows.length">No BOM or packing rule defined for this material yet.</div>
+            </template>
+          </template>
+          <div class="preview-empty" v-else>Select a material to preview what it will consume.</div>
+
+          <div class="formerr" v-if="formError">{{ formError }}</div>
+
+          <div style="margin-top:16px;">
+            <button class="btn-primary" :disabled="submitting || !canSubmit" @click="submitConversion">
+              {{ submitting ? 'Converting…' : 'Run Conversion' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Current Stock</h2>
+          <div v-if="materialsLoading" class="skeleton skel-row"></div>
+          <template v-else>
+            <div class="preview-row" v-for="m in materials" :key="m.id">
+              <span>{{ m.material_name }}</span>
+              <b>{{ stockFor(m.id) }} {{ m.unit }}</b>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div v-if="historyLoading">
+          <div class="skeleton skel-row" v-for="n in 4" :key="n"></div>
+        </div>
+        <table v-else-if="history.length">
+          <thead><tr><th>ID</th><th>Output Material</th><th>Qty Produced</th><th>Run By</th><th>When</th></tr></thead>
+          <tbody>
+            <tr v-for="h in history" :key="h.id" @click="openDetail(h.id)">
+              <td class="qty-cell">#{{ h.id }}</td>
+              <td>{{ h.output_material }}</td>
+              <td class="qty-cell">{{ h.output_qty }}</td>
+              <td style="color:var(--text-muted); font-size:12.5px;">{{ h.created_by_username }}</td>
+              <td style="color:var(--text-muted); font-size:12.5px;">{{ formatDateTime(h.created_at) }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="empty-state" v-else>
+          <p>No conversions run yet.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" v-if="detailLines" @click.self="detailLines=null">
+    <div class="detail-modal">
+      <div class="detail-head">
+        <h3>Conversion #{{ detailId }}</h3>
+        <button class="detail-close" @click="detailLines=null">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="detail-body">
+        <div class="preview-row" v-for="(l, i) in detailLines" :key="i" :style="{color: l.qty_change < 0 ? 'var(--danger)' : 'var(--success)'}">
+          <span>{{ l.material_name }} <span style="color:var(--text-faint); font-size:11px;">({{ l.line_type }})</span></span>
+          <b>{{ l.qty_change > 0 ? '+' : '' }}{{ l.qty_change }} {{ l.unit }}</b>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" :class="toast.type" v-if="toast.show">
+    <svg v-if="toast.type==='ok'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+    <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    {{ toast.message }}
+  </div>
+</div>
+
+<script>
+const { createApp } = Vue;
+const icons = {
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>',
+  requests: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>',
+  verify: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/></svg>',
+  approval: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
+  orders: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>',
+  receiving: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>',
+  inventory: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>',
+  conversion: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>'
+};
+
+// Change this if your FastAPI server runs elsewhere (or set window.MMS_API_BASE before this script runs).
+const API_BASE = window.MMS_API_BASE || 'http://localhost:8000';
+
+function formatDateTime(iso){
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ', ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+createApp({
+  data(){
+    return {
+      apiBase: API_BASE,
+      sidebarOpen: false,
+      darkMode: false,
+      error: null,
+      navItems: [
+        { label: 'Dashboard', icon: icons.home, href: '01-dashboard.html' },
+        { label: 'Material Requests', icon: icons.requests, href: '02-material-requests.html' },
+        { label: 'Receiver Verification', icon: icons.verify, href: '04-receiver-verification.html' },
+        { label: 'Purchase Approval', icon: icons.approval, href: '03-purchase-approval.html' },
+        { label: 'Purchase Orders', icon: icons.orders, href: '05-purchase-orders.html' },
+        { label: 'Material Receiving', icon: icons.receiving, href: '06-material-receiving.html' },
+        { label: 'Inventory', icon: icons.inventory, href: '07-inventory.html' },
+        { label: 'Material Conversion', icon: icons.conversion, href: '08-conversion.html' },
+      ],
+      materials: [],
+      materialsLoading: true,
+      stockMap: {},          // material_id -> available_quantity
+      selectedMaterialId: '',
+      outputQty: '',
+      bomRows: [],
+      packingRows: [],
+      recipeLoading: false,
+      formError: '',
+      submitting: false,
+      history: [],
+      historyLoading: true,
+      detailId: null,
+      detailLines: null,
+      toast: { show:false, type:'ok', message:'' }
+    }
+  },
+  computed: {
+    safeQty(){ const n = Number(this.outputQty); return n > 0 ? n : 0; },
+    canSubmit(){ return this.selectedMaterialId && this.safeQty > 0 && (this.bomRows.length || this.packingRows.length); }
+  },
+  mounted(){
+    this.fetchMaterials();
+    this.fetchHistory();
+  },
+  methods: {
+    toggleTheme(){
+      this.darkMode = !this.darkMode;
+      document.documentElement.setAttribute('data-theme', this.darkMode ? 'dark' : 'light');
+    },
+    formatDateTime,
+    stockFor(materialId){ return this.stockMap[materialId] ?? '—'; },
+    packagesFor(p){ return Math.floor(this.safeQty / p.units_per_package); },
+    remainderNote(p){
+      const rem = this.safeQty % p.units_per_package;
+      return rem > 0 ? `${rem} unit(s) left over, unpackaged (below the ${p.units_per_package}-unit threshold).` : 'Exact multiple — no leftover.';
+    },
+    isShort(materialId, neededQty){
+      const have = this.stockMap[materialId];
+      return have !== undefined && have < neededQty;
+    },
+    async fetchMaterials(){
+      this.materialsLoading = true;
+      try {
+        const [matRes, invRes] = await Promise.all([
+          fetch(`${API_BASE}/api/materials`),
+          fetch(`${API_BASE}/api/inventory`)
+        ]);
+        if (!matRes.ok) throw new Error(`materials returned ${matRes.status}`);
+        this.materials = await matRes.json();
+        if (invRes.ok) {
+          const inv = await invRes.json();
+          (Array.isArray(inv) ? inv : inv.items || []).forEach(i => {
+            this.stockMap[i.material_id] = Number(i.available_quantity);
+          });
+        }
+      } catch (err) {
+        this.error = err.message || 'request failed';
+      } finally {
+        this.materialsLoading = false;
+      }
+    },
+    async loadRecipe(){
+      this.formError = '';
+      this.bomRows = [];
+      this.packingRows = [];
+      if (!this.selectedMaterialId) return;
+      this.recipeLoading = true;
+      try {
+        const [bomRes, packRes] = await Promise.all([
+          fetch(`${API_BASE}/api/bom-components/${this.selectedMaterialId}`),
+          fetch(`${API_BASE}/api/packing-rules/${this.selectedMaterialId}`)
+        ]);
+        this.bomRows = bomRes.ok ? await bomRes.json() : [];
+        this.packingRows = packRes.ok ? await packRes.json() : [];
+      } catch (err) {
+        this.error = err.message || 'request failed';
+      } finally {
+        this.recipeLoading = false;
+      }
+    },
+    async submitConversion(){
+      this.formError = '';
+      if (!this.selectedMaterialId || this.safeQty <= 0) { this.formError = 'Select a material and a quantity greater than zero.'; return; }
+
+      this.submitting = true;
+      try {
+        const res = await fetch(`${API_BASE}/api/conversions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ output_material_id: Number(this.selectedMaterialId), output_qty: this.safeQty })
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.detail || `conversion failed (${res.status})`);
+
+        this.showToast('ok', `Conversion #${body.transaction_id} complete — produced ${this.safeQty} units`);
+        this.outputQty = '';
+        await Promise.all([this.fetchMaterials(), this.fetchHistory(), this.loadRecipe()]);
+      } catch (err) {
+        this.formError = err.message || 'Conversion failed.';
+      } finally {
+        this.submitting = false;
+      }
+    },
+    async fetchHistory(){
+      this.historyLoading = true;
+      try {
+        const res = await fetch(`${API_BASE}/api/conversions`);
+        if (!res.ok) throw new Error(`conversions returned ${res.status}`);
+        this.history = await res.json();
+      } catch (err) {
+        this.error = err.message || 'request failed';
+      } finally {
+        this.historyLoading = false;
+      }
+    },
+    async openDetail(id){
+      this.detailId = id;
+      try {
+        const res = await fetch(`${API_BASE}/api/conversions/${id}`);
+        if (!res.ok) throw new Error(`conversion detail returned ${res.status}`);
+        const body = await res.json();
+        this.detailLines = body.lines || [];
+      } catch (err) {
+        this.showToast('bad', err.message || 'Could not load detail');
+      }
+    },
+    showToast(type, message){
+      this.toast = { show:true, type, message };
+      setTimeout(() => this.toast.show = false, 2800);
+    }
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

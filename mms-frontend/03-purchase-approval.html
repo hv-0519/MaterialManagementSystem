@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MMS — Purchase Approval</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.4.21/vue.global.prod.min.js"></script>
+<style>
+  :root{
+    --bg:#F5F6F8; --surface:#FFFFFF; --surface-sunken:#EEF0F3; --border:#DFE3E8;
+    --text:#1A2233; --text-muted:#5C6B7A; --text-faint:#8A96A5;
+    --primary:#1F3B57; --primary-hover:#2C4F70; --primary-wash:#E7ECF1;
+    --accent:#C77D2E; --accent-wash:#FBF0E2;
+    --success:#2F8F5B; --success-wash:#E7F4ED;
+    --warning:#C77D2E; --warning-wash:#FBF0E2;
+    --danger:#C04A3D; --danger-wash:#F8EAE8;
+    --info:#3B7A9E; --info-wash:#E9F1F5;
+    --violet:#6A5ACD; --violet-wash:#ECEAFA;
+    --radius-sm:6px; --radius-md:10px;
+    --shadow-card: 0 1px 2px rgba(26,34,51,0.06), 0 1px 1px rgba(26,34,51,0.04);
+    --sidebar-w: 240px;
+  }
+  html[data-theme="dark"]{
+    --bg:#11161D; --surface:#171E27; --surface-sunken:#1D2530; --border:#2A3340;
+    --text:#E8EBEF; --text-muted:#9AA7B5; --text-faint:#6B7684;
+    --primary:#2C4F70; --primary-hover:#375F85; --primary-wash:#1E2A36;
+    --accent:#D98A3D; --accent-wash:#2B2013;
+    --success:#3FAE72; --success-wash:#16261C;
+    --warning:#D98A3D; --warning-wash:#2B2013;
+    --danger:#D9695A; --danger-wash:#2B1917;
+    --info:#4F93B8; --info-wash:#17242C;
+    --violet:#9B8FE0; --violet-wash:#211E35;
+    --shadow-card: 0 1px 2px rgba(0,0,0,0.3), 0 1px 1px rgba(0,0,0,0.2);
+  }
+  @keyframes fadeUp{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+  @keyframes fadeIn{ from{opacity:0;} to{opacity:1;} }
+  @keyframes popIn{ from{opacity:0; transform:scale(.96) translateY(6px);} to{opacity:1; transform:scale(1) translateY(0);} }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;transition:background-color .25s ease, color .25s ease;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  #app{display:flex;min-height:100vh;}
+
+  .sidebar{width:var(--sidebar-w); flex-shrink:0; background:var(--primary); color:#fff; position:fixed; top:0; left:0; bottom:0; display:flex; flex-direction:column; transition:transform .25s ease, background-color .25s ease; z-index:40;}
+  .brand{padding:22px 20px 18px; display:flex; align-items:center; gap:10px; border-bottom:1px solid rgba(255,255,255,0.1);}
+  .brand-mark{width:28px;height:28px;border-radius:6px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#1A1208;flex-shrink:0;}
+  .brand-text{line-height:1.2;}
+  .brand-text b{font-size:14.5px;font-weight:600;display:block;}
+  .brand-text span{font-size:11.5px;color:rgba(255,255,255,0.55);}
+  nav.nav{padding:14px 10px; display:flex; flex-direction:column; gap:2px; flex:1;}
+  .nav-item{display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:var(--radius-sm); color:rgba(255,255,255,0.68); font-size:13.5px; font-weight:500; cursor:pointer; text-decoration:none; transition:background .15s, color .15s;}
+  .nav-item svg{width:17px;height:17px;flex-shrink:0;opacity:.85;}
+  .nav-item:hover{background:rgba(255,255,255,0.06); color:#fff;}
+  .nav-item.active{background:rgba(255,255,255,0.12); color:#fff;}
+  .nav-item.active svg{color:var(--accent); opacity:1;}
+  .nav-item.disabled{opacity:.42; cursor:not-allowed; pointer-events:none;}
+  .nav-soon{margin-left:auto; font-size:9.5px; font-weight:700; letter-spacing:.3px; background:rgba(255,255,255,0.1); padding:1.5px 6px; border-radius:10px; color:rgba(255,255,255,0.6);}
+  .sidebar-foot{padding:14px 20px 18px; font-size:11px; color:rgba(255,255,255,0.4); border-top:1px solid rgba(255,255,255,0.1);}
+
+  .main{margin-left:var(--sidebar-w); flex:1; min-width:0; display:flex; flex-direction:column;}
+  .topbar{height:64px; background:var(--surface); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 24px; position:sticky; top:0; z-index:20; transition:background-color .25s ease, border-color .25s ease;}
+  .topbar-left{display:flex; align-items:center; gap:14px; min-width:0;}
+  .hamburger{display:none; background:none; border:none; cursor:pointer; padding:6px; margin-left:-6px;}
+  .hamburger svg{width:20px;height:20px;color:var(--text);}
+  .crumb{font-size:12.5px; color:var(--text-faint);}
+  .page-title-top{font-size:16px; font-weight:600; margin:1px 0 0;}
+  .topbar-right{display:flex; align-items:center; gap:16px;}
+  .bell-btn{position:relative; background:none; border:none; cursor:pointer; padding:7px; border-radius:var(--radius-sm); color:var(--text-muted);}
+  .bell-btn:hover{background:var(--surface-sunken);}
+  .bell-btn svg{width:18px;height:18px;display:block;}
+  .theme-btn svg{transition:transform .3s ease;}
+  .theme-btn:active svg{transform:rotate(25deg);}
+  .bell-dot{position:absolute; top:6px; right:6px; width:7px; height:7px; border-radius:50%; background:var(--accent); border:1.5px solid var(--surface);}
+  .user-chip{display:flex; align-items:center; gap:9px; padding-left:16px; border-left:1px solid var(--border);}
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--primary-wash);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;}
+  .user-meta{line-height:1.25;}
+  .user-meta b{font-size:13px; font-weight:600; display:block;}
+  .role-badge{display:inline-block; margin-top:1px; font-size:10px; font-weight:600; color:var(--info); background:var(--info-wash); padding:1px 7px; border-radius:20px;}
+
+  .content{padding:26px 28px 60px; max-width:1180px; width:100%; margin:0 auto;}
+  .content-head{margin-bottom:20px; animation:fadeUp .35s ease both;}
+  .content-head h1{font-size:21px; font-weight:700; margin:0 0 4px;}
+  .content-head p{font-size:13.5px; color:var(--text-muted); margin:0;}
+
+  .error-banner{background:var(--danger-wash); color:var(--danger); border:1px solid var(--danger); border-radius:var(--radius-md); padding:12px 16px; font-size:13px; margin-bottom:16px; display:flex; align-items:center; gap:8px;}
+  .error-banner svg{width:16px;height:16px; flex-shrink:0;}
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.5;} }
+  .skeleton{background:var(--surface-sunken); border-radius:var(--radius-md); animation:pulse 1.4s ease-in-out infinite;}
+  .skel-strip{height:60px;}
+  .skel-card{height:220px; margin-bottom:12px;}
+
+  .queue-strip{display:flex; gap:12px; margin-bottom:20px;}
+  .strip-card{flex:1; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:14px 16px; box-shadow:var(--shadow-card); animation:fadeUp .4s ease both; transition:background-color .25s ease, border-color .25s ease;}
+  .strip-card b{font-family:'IBM Plex Mono',monospace; font-size:21px; font-weight:600; display:block;}
+  .strip-card span{font-size:12px; color:var(--text-muted);}
+
+  /* Approval cards */
+  .approval-list{display:flex; flex-direction:column; gap:12px;}
+  .approval-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:18px 20px; box-shadow:var(--shadow-card); transition:transform .18s ease, box-shadow .18s ease, background-color .25s ease, border-color .25s ease; animation:fadeUp .4s ease both;}
+  .approval-card:hover{transform:translateY(-2px); box-shadow:0 10px 24px rgba(26,34,51,0.1);}
+  .ac-top{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:14px;}
+  .ac-material{font-size:15px; font-weight:600; margin:0 0 3px;}
+  .ac-no{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--text-faint);}
+  .type-chip{display:inline-block; font-size:10.5px; font-weight:600; padding:2px 8px; border-radius:20px; flex-shrink:0;}
+  .type-advance{background:var(--accent-wash); color:var(--accent);}
+  .type-new{background:var(--info-wash); color:var(--info);}
+
+  .ac-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; padding:14px; background:var(--surface-sunken); border-radius:var(--radius-sm); margin-bottom:14px; transition:background-color .25s ease;}
+  .ac-field span{display:block; font-size:10.5px; font-weight:600; color:var(--text-faint); text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px;}
+  .ac-field b{font-size:13px; font-weight:600;}
+  .ac-field.mono b{font-family:'IBM Plex Mono',monospace;}
+
+  .ac-verify{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-muted); margin-bottom:16px;}
+  .ac-verify svg{width:14px;height:14px; color:var(--success); flex-shrink:0;}
+  .ac-verify b{color:var(--text); font-weight:600;}
+
+  .ac-actions{display:flex; gap:10px; justify-content:flex-end;}
+  .btn-approve{background:var(--success); color:#fff; border:none; padding:9px 16px; border-radius:var(--radius-sm); font-size:13px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:filter .15s, transform .12s;}
+  .btn-approve:hover{filter:brightness(0.95); transform:translateY(-1px);}
+  .btn-reject{background:var(--surface); color:var(--danger); border:1px solid var(--danger-wash); padding:9px 16px; border-radius:var(--radius-sm); font-size:13px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:background .15s, transform .12s;}
+  .btn-reject:hover{background:var(--danger-wash); transform:translateY(-1px);}
+  .btn-approve svg, .btn-reject svg{width:14px;height:14px;}
+
+  .empty-state{padding:60px 20px; text-align:center; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md);}
+  .empty-state svg{width:40px;height:40px; color:var(--success); margin-bottom:12px;}
+  .empty-state h3{font-size:14.5px; margin:0 0 4px;}
+  .empty-state p{font-size:12.5px; color:var(--text-muted); margin:0;}
+
+  /* Modal */
+  .modal-backdrop{position:fixed; inset:0; background:rgba(15,20,25,0.45); display:flex; align-items:center; justify-content:center; z-index:60; padding:16px; animation:fadeIn .15s ease both;}
+  .modal{background:var(--surface); border-radius:var(--radius-md); width:100%; max-width:440px; box-shadow:0 20px 50px rgba(0,0,0,0.25); animation:popIn .18s ease both;}
+  .modal-icon{width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:22px auto 4px;}
+  .modal-icon svg{width:22px;height:22px;}
+  .modal-body-center{padding:4px 24px 8px; text-align:center;}
+  .modal-body-center h3{font-size:16px; margin:0 0 6px;}
+  .modal-body-center p{font-size:13px; color:var(--text-muted); margin:0; line-height:1.5;}
+  .modal-body-center p b{color:var(--text);}
+  .reason-field{padding:16px 24px 4px;}
+  .reason-field label{display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;}
+  .reason-field textarea{width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:var(--radius-sm); font-size:13px; background:var(--bg); color:var(--text); font-family:inherit; resize:vertical;}
+  .reason-field textarea:focus{outline:2px solid var(--primary); outline-offset:1px;}
+  .modal-foot{padding:20px 24px 22px; display:flex; justify-content:center; gap:10px;}
+  .btn-ghost{background:none; border:1px solid var(--border); color:var(--text); padding:9px 18px; border-radius:var(--radius-sm); font-size:13px; font-weight:600; cursor:pointer;}
+  .btn-ghost:hover{background:var(--surface-sunken);}
+
+  .toast{position:fixed; bottom:24px; right:24px; background:var(--text); color:var(--surface); padding:12px 18px; border-radius:var(--radius-sm); font-size:13px; font-weight:500; display:flex; align-items:center; gap:9px; box-shadow:0 8px 24px rgba(0,0,0,0.2); z-index:70; animation:popIn .2s ease both;}
+  .toast svg{width:16px;height:16px; flex-shrink:0;}
+  .toast.ok svg{color:var(--success);}
+  .toast.bad svg{color:var(--danger);}
+
+  .scrim{display:none; position:fixed; inset:0; background:rgba(15,20,25,0.4); z-index:30;}
+  @media (max-width: 768px){
+    .sidebar{transform:translateX(-100%);}
+    .sidebar.open{transform:translateX(0);}
+    .main{margin-left:0;}
+    .hamburger{display:inline-flex;}
+    .scrim.show{display:block;}
+    .user-meta{display:none;}
+    .content{padding:18px 14px 50px;}
+    .queue-strip{flex-direction:column;}
+    .ac-grid{grid-template-columns:1fr 1fr;}
+    .ac-actions{flex-direction:column;}
+    .btn-approve, .btn-reject{justify-content:center;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="scrim" :class="{show: sidebarOpen}" @click="sidebarOpen=false"></div>
+
+  <aside class="sidebar" :class="{open: sidebarOpen}">
+    <div class="brand">
+      <div class="brand-mark">M</div>
+      <div class="brand-text"><b>Material Mgmt</b><span>System</span></div>
+    </div>
+    <nav class="nav">
+      <a class="nav-item" :class="{active: item.label === 'Purchase Approval', disabled: !item.href}" :href="item.href || null" v-for="item in navItems" :key="item.label">
+        <span v-html="item.icon"></span>{{ item.label }}
+        <span class="nav-soon" v-if="!item.href">Soon</span>
+      </a>
+    </nav>
+    <div class="sidebar-foot">v0.1 prototype — Webential</div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger" @click="sidebarOpen=true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div>
+          <div class="crumb">Procurement</div>
+          <div class="page-title-top">Purchase Approval</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="bell-btn theme-btn" @click="toggleTheme" :title="darkMode ? 'Switch to light' : 'Switch to dark'">
+          <svg v-if="!darkMode" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1111.2 3 7 7 0 0021 12.8z"/></svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        </button>
+        <button class="bell-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <span class="bell-dot"></span>
+        </button>
+        <div class="user-chip">
+          <div class="avatar">HP</div>
+          <div class="user-meta"><b>Het Patel</b><span class="role-badge">Purchase Supervisor</span></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="content-head">
+        <h1>Purchase Approval</h1>
+        <p>Verified requests awaiting your approval before a purchase order is raised.</p>
+      </div>
+
+      <div class="error-banner" v-if="error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Couldn't reach the API at {{ apiBase }} — {{ error }}.
+      </div>
+
+      <template v-if="loading">
+        <div class="queue-strip">
+          <div class="skeleton skel-strip" style="flex:1;"></div>
+          <div class="skeleton skel-strip" style="flex:1;"></div>
+          <div class="skeleton skel-strip" style="flex:1;"></div>
+        </div>
+        <div class="skeleton skel-card" v-for="n in 3" :key="n"></div>
+      </template>
+
+      <template v-else>
+        <div class="queue-strip">
+          <div class="strip-card"><b>{{ queue.length }}</b><span>Awaiting review</span></div>
+          <div class="strip-card"><b>{{ advanceCount }}</b><span>ADVANCE requests</span></div>
+          <div class="strip-card"><b>{{ approvedToday }}</b><span>Approved today</span></div>
+        </div>
+
+        <div class="approval-list" v-if="queue.length">
+          <div class="approval-card" v-for="(r, i) in queue" :key="r.no" :style="{animationDelay: (i*0.04)+'s'}">
+            <div class="ac-top">
+              <div>
+                <h3 class="ac-material">{{ r.material }}</h3>
+                <span class="ac-no">{{ r.no }}</span>
+              </div>
+              <span class="type-chip" :class="r.type === 'ADVANCE' ? 'type-advance' : 'type-new'">{{ r.type }}</span>
+            </div>
+
+            <div class="ac-grid">
+              <div class="ac-field mono"><span>Quantity</span><b>{{ r.qty }}</b></div>
+              <div class="ac-field mono"><span>Required Date</span><b>{{ r.required }}</b></div>
+              <div class="ac-field"><span>Requester</span><b>{{ r.createdBy }}</b></div>
+              <div class="ac-field"><span>Remarks</span><b>{{ r.remarks || '—' }}</b></div>
+            </div>
+
+            <div class="ac-verify">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+              Verified by <b>{{ r.verifiedBy }}</b> on {{ r.verifiedOn }}
+            </div>
+
+            <div class="ac-actions">
+              <button class="btn-reject" :disabled="actioning" @click="openReject(r)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                Reject
+              </button>
+              <button class="btn-approve" :disabled="actioning" @click="openApprove(r)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+                Approve
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="empty-state" v-else>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 6L9 17l-5-5"/></svg>
+          <h3>Queue clear</h3>
+          <p>Every verified request has been reviewed.</p>
+        </div>
+      </template>
+    </main>
+  </div>
+
+  <!-- Approve confirm -->
+  <div class="modal-backdrop" v-if="confirming === 'approve'" @click.self="closeModal">
+    <div class="modal">
+      <div class="modal-icon" style="background:var(--success-wash); color:var(--success);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+      </div>
+      <div class="modal-body-center">
+        <h3>Approve this request?</h3>
+        <p>Approving <b>{{ activeReq?.no }}</b> ({{ activeReq?.material }}) moves it forward to Purchase Order generation.</p>
+      </div>
+      <div class="modal-foot">
+        <button class="btn-ghost" @click="closeModal">Cancel</button>
+        <button class="btn-approve" :disabled="actioning" @click="confirmApprove">{{ actioning ? 'Approving…' : 'Confirm Approve' }}</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reject confirm -->
+  <div class="modal-backdrop" v-if="confirming === 'reject'" @click.self="closeModal">
+    <div class="modal">
+      <div class="modal-icon" style="background:var(--danger-wash); color:var(--danger);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>
+      <div class="modal-body-center">
+        <h3>Reject this request?</h3>
+        <p>Rejecting <b>{{ activeReq?.no }}</b> ({{ activeReq?.material }}) sends it back with your reason below.</p>
+      </div>
+      <div class="reason-field">
+        <label>Reason for rejection</label>
+        <textarea rows="3" v-model="rejectReason" placeholder="e.g. Quantity exceeds approved budget for this cycle…"></textarea>
+      </div>
+      <div class="modal-foot">
+        <button class="btn-ghost" @click="closeModal">Cancel</button>
+        <button class="btn-reject" :disabled="!rejectReason.trim() || actioning" @click="confirmReject" :style="{opacity: (rejectReason.trim() && !actioning) ? 1 : 0.5, cursor: (rejectReason.trim() && !actioning) ? 'pointer' : 'not-allowed'}">{{ actioning ? 'Rejecting…' : 'Confirm Reject' }}</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" :class="toast.type" v-if="toast.show">
+    <svg v-if="toast.type==='ok'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+    <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    {{ toast.message }}
+  </div>
+</div>
+
+<script>
+const { createApp } = Vue;
+const icons = {
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>',
+  requests: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>',
+  approval: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
+  verify: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/></svg>',
+  orders: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>',
+  receiving: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>',
+  inventory: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>',
+  conversion: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>'
+};
+
+// Change this if your FastAPI server runs elsewhere (or set window.MMS_API_BASE before this script runs).
+const API_BASE = window.MMS_API_BASE || 'http://localhost:8000';
+
+function formatDate(iso){
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+createApp({
+  data(){
+    return {
+      apiBase: API_BASE,
+      sidebarOpen: false,
+      darkMode: false,
+      loading: true,
+      error: null,
+      actioning: false,
+      confirming: null,       // null | 'approve' | 'reject'
+      activeReq: null,
+      rejectReason: '',
+      toast: { show:false, type:'ok', message:'' },
+      navItems: [
+        { label: 'Dashboard', icon: icons.home, href: '01-dashboard.html' },
+        { label: 'Material Requests', icon: icons.requests, href: '02-material-requests.html' },
+        { label: 'Receiver Verification', icon: icons.verify, href: '04-receiver-verification.html' },
+        { label: 'Purchase Approval', icon: icons.approval, href: '03-purchase-approval.html' },
+        { label: 'Purchase Orders', icon: icons.orders, href: '05-purchase-orders.html' },
+        { label: 'Material Receiving', icon: icons.receiving, href: '06-material-receiving.html' },
+        { label: 'Inventory', icon: icons.inventory, href: '07-inventory.html' },
+        { label: 'Material Conversion', icon: icons.conversion, href: '08-conversion.html' },
+      ],
+      approvedTodayCount: 0,
+      queue: []  // mapped {_id, no, material, qty, type, required, createdBy, remarks, verifiedBy, verifiedOn}
+    }
+  },
+  computed: {
+    advanceCount(){ return this.queue.filter(r => r.type === 'ADVANCE').length; },
+    approvedToday(){ return this.approvedTodayCount; }
+  },
+  mounted(){
+    this.fetchQueue();
+  },
+  methods: {
+    toggleTheme(){
+      this.darkMode = !this.darkMode;
+      document.documentElement.setAttribute('data-theme', this.darkMode ? 'dark' : 'light');
+    },
+    mapQueueItem(r){
+      return {
+        _id: r.id,
+        no: r.request_no,
+        material: r.material_name,
+        qty: `${r.quantity} ${r.unit || ''}`.trim(),
+        type: r.request_type,
+        required: formatDate(r.required_date),
+        createdBy: r.created_by_username || '—',
+        remarks: r.remarks || '',
+        verifiedBy: r.verified_by_username || '—',
+        verifiedOn: formatDate(r.verified_at)
+      };
+    },
+    async fetchQueue(){
+      this.loading = true;
+      this.error = null;
+      try {
+        const res = await fetch(`${API_BASE}/api/purchase-approval/queue`);
+        if (!res.ok) throw new Error(`purchase-approval/queue returned ${res.status}`);
+        const data = await res.json();
+        this.queue = (data.queue || []).map(this.mapQueueItem);
+        this.approvedTodayCount = data.approved_today || 0;
+      } catch (err) {
+        this.error = err.message || 'request failed';
+      } finally {
+        this.loading = false;
+      }
+    },
+    openApprove(r){ this.activeReq = r; this.confirming = 'approve'; },
+    openReject(r){ this.activeReq = r; this.rejectReason = ''; this.confirming = 'reject'; },
+    closeModal(){
+      if (this.actioning) return;
+      this.confirming = null; this.activeReq = null;
+    },
+    async confirmApprove(){
+      this.actioning = true;
+      try {
+        const res = await fetch(`${API_BASE}/api/material-requests/${this.activeReq._id}/approve`, { method: 'POST' });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.detail || `approve failed (${res.status})`);
+        this.queue = this.queue.filter(r => r._id !== this.activeReq._id);
+        this.approvedTodayCount++;
+        this.showToast('ok', `${this.activeReq.no} approved — moved to Purchase Orders`);
+        this.confirming = null; this.activeReq = null;
+      } catch (err) {
+        this.showToast('bad', err.message || 'Approve failed');
+      } finally {
+        this.actioning = false;
+      }
+    },
+    async confirmReject(){
+      if (!this.rejectReason.trim()) return;
+      this.actioning = true;
+      try {
+        const res = await fetch(`${API_BASE}/api/material-requests/${this.activeReq._id}/reject`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: this.rejectReason.trim() })
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.detail || `reject failed (${res.status})`);
+        this.queue = this.queue.filter(r => r._id !== this.activeReq._id);
+        this.showToast('bad', `${this.activeReq.no} rejected`);
+        this.confirming = null; this.activeReq = null;
+      } catch (err) {
+        this.showToast('bad', err.message || 'Reject failed');
+      } finally {
+        this.actioning = false;
+      }
+    },
+    showToast(type, message){
+      this.toast = { show:true, type, message };
+      setTimeout(() => this.toast.show = false, 2800);
+    }
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
