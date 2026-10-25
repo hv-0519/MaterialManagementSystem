@@ -31,3 +31,9 @@ Thumbs.db
 frontend_backup_*/
 backend_before_*/
 frontend_before_*/
+
+# Local backup/scratch files from AI pair-programming
+*.bak
+*.bak-*
+*_before_*.py
+*_before_*.vue

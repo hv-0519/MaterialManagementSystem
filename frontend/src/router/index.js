@@ -1,10 +1,11 @@
-﻿import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 
 import DashboardView from '@/views/DashboardView.vue'
 import RequestsView from '@/views/RequestsView.vue'
 import NewRequestView from '@/views/NewRequestView.vue'
 import ApprovalView from '@/views/ApprovalView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
+import ConversionView from '@/views/ConversionView.vue'
 
 export const navItems = [
   {
@@ -42,6 +43,12 @@ export const navItems = [
     name: 'inventory',
     label: 'Inventory',
     icon: 'Boxes',
+  },
+  {
+    path: '/conversion',
+    name: 'conversion',
+    label: 'Material Conversion',
+    icon: 'GitBranch',
   },
 ]
 
@@ -113,6 +120,15 @@ const router = createRouter({
       component: PlaceholderView,
       meta: {
         title: 'Inventory',
+      },
+    },
+
+    {
+      path: '/conversion',
+      name: 'conversion',
+      component: ConversionView,
+      meta: {
+        title: 'Material Conversion',
       },
     },
   ],

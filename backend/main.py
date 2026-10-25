@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from database import get_db_connection
@@ -30,21 +30,39 @@ class ReceiveRequest(BaseModel):
     quantity: float
 
 
+from pydantic import Field, field_validator
+from mysql.connector import Error as MySQLError
+
+
 class BomComponentIn(BaseModel):
     output_material_id: int
     component_material_id: int
-    qty_per_unit: float
+    qty_per_unit: float = Field(gt=0, description="Must be greater than zero")
+
+    @field_validator("component_material_id")
+    @classmethod
+    def no_self_reference(cls, v, info):
+        if info.data.get("output_material_id") == v:
+            raise ValueError("A material cannot be a component of itself")
+        return v
 
 
 class PackingRuleIn(BaseModel):
     output_material_id: int
     package_material_id: int
-    units_per_package: int
+    units_per_package: int = Field(gt=0, description="Must be greater than zero")
+
+    @field_validator("package_material_id")
+    @classmethod
+    def no_self_reference(cls, v, info):
+        if info.data.get("output_material_id") == v:
+            raise ValueError("A material cannot be its own package")
+        return v
 
 
 class ConversionIn(BaseModel):
     output_material_id: int
-    output_qty: float
+    output_qty: float = Field(gt=0, description="Must be greater than zero")
 
 
 @app.get("/api/material-requests")
@@ -504,7 +522,7 @@ def get_dashboard_summary():
                 mr.request_type AS type, mr.status,
                 CASE
                     WHEN mr.status = 'PENDING_VERIFICATION' THEN 'Waiting for receiver verification'
-                    WHEN mr.status = 'VERIFIED' THEN 'Verified · awaiting purchase review'
+                    WHEN mr.status = 'VERIFIED' THEN 'Verified Â· awaiting purchase review'
                     ELSE mr.status
                 END AS note
             FROM material_requests mr
@@ -573,13 +591,27 @@ def add_bom_component(data: BomComponentIn):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute(
-            "INSERT INTO bom_components (output_material_id, component_material_id, qty_per_unit) "
-            "VALUES (%s, %s, %s)",
-            (data.output_material_id, data.component_material_id, data.qty_per_unit)
-        )
+        for mat_id in (data.output_material_id, data.component_material_id):
+            cursor.execute("SELECT id FROM materials WHERE id = %s", (mat_id,))
+            if not cursor.fetchone():
+                raise HTTPException(status_code=404, detail=f"Material {mat_id} does not exist")
+
+        try:
+            cursor.execute(
+                "INSERT INTO bom_components (output_material_id, component_material_id, qty_per_unit) "
+                "VALUES (%s, %s, %s)",
+                (data.output_material_id, data.component_material_id, data.qty_per_unit)
+            )
+        except MySQLError as err:
+            if err.errno == 1062:
+                raise HTTPException(status_code=400, detail="This component is already part of the BOM for this material")
+            raise
+
         conn.commit()
         return {"id": cursor.lastrowid}
+    except HTTPException:
+        conn.rollback()
+        raise
     finally:
         cursor.close()
         conn.close()
@@ -607,13 +639,27 @@ def add_packing_rule(data: PackingRuleIn):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute(
-            "INSERT INTO packing_rules (output_material_id, package_material_id, units_per_package) "
-            "VALUES (%s, %s, %s)",
-            (data.output_material_id, data.package_material_id, data.units_per_package)
-        )
+        for mat_id in (data.output_material_id, data.package_material_id):
+            cursor.execute("SELECT id FROM materials WHERE id = %s", (mat_id,))
+            if not cursor.fetchone():
+                raise HTTPException(status_code=404, detail=f"Material {mat_id} does not exist")
+
+        try:
+            cursor.execute(
+                "INSERT INTO packing_rules (output_material_id, package_material_id, units_per_package) "
+                "VALUES (%s, %s, %s)",
+                (data.output_material_id, data.package_material_id, data.units_per_package)
+            )
+        except MySQLError as err:
+            if err.errno == 1062:
+                raise HTTPException(status_code=400, detail="A packing rule for this material/package pair already exists")
+            raise
+
         conn.commit()
         return {"id": cursor.lastrowid}
+    except HTTPException:
+        conn.rollback()
+        raise
     finally:
         cursor.close()
         conn.close()
@@ -640,6 +686,10 @@ def execute_conversion(output_material_id: int, output_qty: float, user_id: int)
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
+        cursor.execute("SELECT id FROM materials WHERE id = %s", (output_material_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail=f"Material {output_material_id} does not exist")
+
         cursor.execute(
             "SELECT component_material_id, qty_per_unit FROM bom_components WHERE output_material_id = %s",
             (output_material_id,)
@@ -671,7 +721,10 @@ def execute_conversion(output_material_id: int, output_qty: float, user_id: int)
             row = cursor.fetchone()
             available = float(row["available_quantity"]) if row else 0
             if available < needed_qty:
-                shortages.append(f"material_id {mat_id}: need {needed_qty}, have {available}")
+                cursor.execute("SELECT material_name, unit FROM materials WHERE id = %s", (mat_id,))
+                mat = cursor.fetchone()
+                mat_label = f"{mat['material_name']} ({mat['unit']})" if mat else f"material_id {mat_id}"
+                shortages.append(f"{mat_label} â€” need {needed_qty}, have {available}")
 
         if shortages:
             raise HTTPException(status_code=400, detail="Insufficient stock: " + "; ".join(shortages))
